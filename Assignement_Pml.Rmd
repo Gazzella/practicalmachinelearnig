@@ -1,0 +1,105 @@
+---
+title: "A system for predicting sports performance"
+output: html_document
+Author: Gazzella Ingegnosa
+---
+
+##Introduction
+
+In this project  we will try to implemente a procedure able to quantify how well people perform excercises.  
+We will use data gathered with devices like Fitbit, Jawbon up, etc. from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+
+##Uploading libraries and dataset
+
+```{r libdataset} 
+library(caret)
+library(randomForest)
+library(YaleToolkit)
+library(e1071)
+
+setwd("C:/coursera")
+#Upload dataset for project
+training <- read.csv("./pml-training.csv")
+#Upload dataset for quiz (validation set)
+#plmvalidation <- read.table("./pml-testing.csv", sep=",", header=TRUE)
+
+```
+##Cross-validation
+The procedure consists in splitting in training set into sub-training/test sets
+For cross-validation, as we have a large sample we will split dataset in 60% training and 40% test.
+
+```
+
+```{r testtrain}
+
+set.seed(33833)
+trainIndex = createDataPartition(training$classe,p=0.6,list=FALSE)
+training = training[trainIndex,]
+testing = training[-trainIndex,]
+
+```
+##Preprocessing to select variables
+We explore dataset verifying if there are variables not compiled.
+Ploting data shows that there is problably a pattern.
+
+```{r Plotting}
+
+myTitle <-"Sport performance"
+qplot(num_window, roll_belt, col=classe,data=training) +  labs(title = myTitle)
+
+```
+Dropping null variable.
+```{r dropvar}
+
+ListVar <- data.frame(whatis(training, var.name.truncate = 50))
+SelectVar<-subset(ListVar, ListVar$missing == 0)
+colnames<-as.vector(SelectVar$variable.name)
+trainsel<-training[,colnames(training)%in%colnames]
+
+
+```
+How many variables with a low compilation?
+We apply near0var procedure to drop variables with a low variability.
+Moreover we dropped X, timestamp and user_name traisel2$X.
+
+```{r zerovar}
+
+ListNear0<- nearZeroVar(trainsel,saveMetrics = TRUE)
+SelectNear0<-subset(ListNear0, ListNear0$nzv == FALSE)
+colnames<-as.vector(row.names(SelectNear0))
+trainsel2<-trainsel[,colnames(trainsel)%in%colnames]
+
+trainsel2$cvtd_timestamp <- NULL
+trainsel2$user_name <- NULL
+trainsel2$X <- NULL
+
+
+```
+
+##Classification with random forest 
+We built a model on training set, then we have evaluated on test set
+
+
+```{r randfor}
+
+rfFit <- randomForest(trainsel2$classe ~ .,data=trainsel2,importanCE=TRUE, ntree=50)
+varImp(rfFit)
+head(getTree(rfFit, 2))
+
+```
+## Out of sample error
+We have repeated and averaged estimated errors
+
+```{r outofsample}
+
+confusionMatrix(trainsel2$classe,predict(rfFit,trainsel2))
+confusionMatrix(testing$classe,predict(rfFit,testing))
+
+```
+
+
+
+
+
+
+
